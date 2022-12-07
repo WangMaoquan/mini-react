@@ -1,5 +1,6 @@
 import { WorkTag } from './workTags';
 import { Key, Props, Ref } from 'shared/ReactTypes';
+import { Flags, NoFlags } from './fiberFlags';
 
 export class FiberNode {
 	// fiber 的类型
@@ -25,6 +26,10 @@ export class FiberNode {
 
 	// 最后确定props
 	memoizedProps: Props | null;
+	// 用于切换 currentFiber 与 workInProgressFiber 的标记
+	alternate: FiberNode | null;
+	// 用于标记fiber 需要执行的操作 (插入/删除) => 副作用
+	flags: Flags;
 
 	constructor(tag: WorkTag, pendingProps: Props, key: Key) {
 		// 实例基本属性
@@ -44,5 +49,8 @@ export class FiberNode {
 		// 作为工作单元
 		this.pendingProps = pendingProps;
 		this.memoizedProps = null;
+
+		this.alternate = null;
+		this.flags = NoFlags;
 	}
 }
