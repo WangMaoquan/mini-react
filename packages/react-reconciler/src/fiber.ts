@@ -1,6 +1,7 @@
 import { WorkTag } from './workTags';
 import { Key, Props, Ref } from 'shared/ReactTypes';
 import { Flags, NoFlags } from './fiberFlags';
+import { Container } from 'hostConfig';
 
 export class FiberNode {
 	// fiber 的类型
@@ -26,10 +27,12 @@ export class FiberNode {
 
 	// 最后确定props
 	memoizedProps: Props | null;
+	memoizedState: any;
 	// 用于切换 currentFiber 与 workInProgressFiber 的标记
 	alternate: FiberNode | null;
 	// 用于标记fiber 需要执行的操作 (插入/删除) => 副作用
 	flags: Flags;
+	updateQueue: unknown;
 
 	constructor(tag: WorkTag, pendingProps: Props, key: Key) {
 		// 实例基本属性
@@ -49,8 +52,60 @@ export class FiberNode {
 		// 作为工作单元
 		this.pendingProps = pendingProps;
 		this.memoizedProps = null;
+		this.memoizedState = null;
+		this.updateQueue = null;
 
 		this.alternate = null;
 		this.flags = NoFlags;
 	}
 }
+
+/**
+ *   FiberRootNode
+ *
+ * currnet  stateNode
+ *
+ *   hostRootFiber
+ *
+ * child   return
+ *
+ * ...fiberTree
+ */
+export class FiberRootNode {
+	container: Container; // 不同环境对应的类型不一样
+	current: FiberNode; // 用于指向 hostRootFiber
+	finishedWork: FiberNode | null; // 保存更新完成的 hostRootFiber
+	constructor(container: Container, hostRootFiber: FiberNode) {
+		this.container = container;
+		this.current = hostRootFiber;
+		hostRootFiber.stateNode = this;
+		this.finishedWork = null;
+	}
+}
+
+export const createWorkInProgress = (
+	current: FiberNode,
+	penddingProps: Props
+) => {
+	let workInProgress = current.alternate;
+	if (workInProgress === null) {
+		// 首屏渲染是不存在 workInProgress 的所以是mount
+		workInProgress = new FiberNode(current.tag, penddingProps, current.key);
+		workInProgress.stateNode = current.stateNode;
+		workInProgress.alternate = current;
+		current.alternate = workInProgress;
+	} else {
+		// update
+		// 清除上次更新遗留
+		workInProgress.pendingProps = penddingProps;
+		workInProgress.flags = NoFlags;
+	}
+
+	workInProgress.type = current.type;
+	workInProgress.updateQueue = current.updateQueue;
+	workInProgress.child = current.child;
+	workInProgress.memoizedProps = current.memoizedProps;
+	workInProgress.memoizedState = current.memoizedState;
+
+	return workInProgress;
+};
