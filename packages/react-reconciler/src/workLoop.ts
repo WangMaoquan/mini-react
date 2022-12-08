@@ -1,16 +1,40 @@
 import { beginWork } from './beginWork';
 import { completeWork } from './completeWork';
-import { FiberNode } from './fiber';
+import { createWorkInProgress, FiberNode, FiberRootNode } from './fiber';
+import { HostRoot } from './workTags';
 
 // 保存当前遍历到的fiber 节点
 let workInProgress: FiberNode | null = null;
 
-// 修改当前fiber 调用的方法
-function prepareFreshStack(fiber: FiberNode) {
-	workInProgress = fiber;
+//
+function prepareFreshStack(root: FiberRootNode) {
+	workInProgress = createWorkInProgress(root.current, {});
 }
 
-function renderRoot(root: FiberNode) {
+export function scheduleUpdateOnFiber(fiber: FiberNode) {
+	// react 的更新一定是从fiberRootNode 开始的, 这里的fiber 可能是fiberRootNode 也可能是 组件的fiberNode
+	// 所以我们需要 从传入的fiber 遍历到 fiberRootNode
+	const root = markUpdateFromFiberToRoot(fiber);
+	renderRoot(root);
+}
+
+function markUpdateFromFiberToRoot(fiber: FiberNode) {
+	let node = fiber;
+	let parent = fiber.return;
+
+	// 只有hostRootFiber 与 FiberRootNode 之间用的 currnet / stateNode 关联
+	while (parent !== null) {
+		node = parent;
+		parent = node.return;
+	}
+	// 跳出循环还需要判断下 tag
+	if (node.tag === HostRoot) {
+		return node.stateNode;
+	}
+	return null;
+}
+
+function renderRoot(root: FiberRootNode) {
 	// 初始化
 	prepareFreshStack(root);
 
@@ -43,7 +67,7 @@ function performUnitOfwork(fiber: FiberNode) {
 	if (next === null) {
 		completeUnitOfWork(fiber);
 	} else {
-		prepareFreshStack(next);
+		workInProgress = next;
 	}
 }
 
@@ -53,7 +77,7 @@ function completeUnitOfWork(fiber: FiberNode) {
 		completeWork(node);
 		const sibling = node.sibling;
 		if (sibling !== null) {
-			prepareFreshStack(sibling);
+			workInProgress = sibling;
 			return;
 		}
 		node = fiber.return;
