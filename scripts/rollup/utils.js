@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import ts from 'rollup-plugin-typescript2';
 import cjs from '@rollup/plugin-commonjs';
+import replace from '@rollup/plugin-replace';
 
 // 保存 packages 文件的路径
 const packagesPath = path.resolve(__dirname, '../../packages');
@@ -20,6 +21,11 @@ export const getPackagesJson = (pkgName) => {
 	return JSON.parse(pkgJsonStr);
 };
 
-export function getBasePlugins({ typescript = {} } = {}) {
-	return [cjs(), ts(typescript)];
+export function getBasePlugins({
+	alias = {
+		__Dev__: true
+	},
+	typescript = {}
+} = {}) {
+	return [replace(alias), cjs(), ts(typescript)];
 }
